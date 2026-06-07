@@ -1,4 +1,433 @@
 <!DOCTYPE html>
-<html>
-<h1 style="text-align: center; color: orange;">塔羅貓網頁測試成功！</h1>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>貓咪女巫塔羅牌</title>
+    
+    <!-- 引入 Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 FontAwesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 引入 Google Fonts (Noto Serif TC) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- 自訂樣式與 3D 翻轉動畫 -->
+    <style>
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #1a1025;
+            background-image: radial-gradient(#4c1d95 1px, transparent 1px);
+            background-size: 32px 32px;
+            color: white;
+        }
+
+        /* 牌背花紋 */
+        .card-back-pattern {
+            background: linear-gradient(135deg, #2e1065, #4c1d95, #1e1b4b);
+            background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+        }
+
+        /* 3D 翻牌動畫設定 */
+        .perspective { perspective: 1000px; }
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.8s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+        
+        /* 逆位牌卡圖片倒轉 */
+        .card-reversed img {
+            transform: rotate(180deg);
+        }
+
+        /* 隱藏捲軸但允許捲動 (提升美觀) */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6d28d9; }
+    </style>
+</head>
+<body class="min-h-screen selection:bg-purple-500 selection:text-white flex flex-col">
+
+    <!-- 應用程式的根節點 -->
+    <div id="app" class="flex-1 flex flex-col items-center justify-center p-4 md:p-8"></div>
+
+    <script>
+        // --- 1. 塔羅牌資料庫 (手繪風貓咪) ---
+        const tarotDeck = [
+            {
+                id: 0,
+                name: '愚者 (The Fool)',
+                title: '潛能與初心',
+                imageUrl: 'https://image.pollinations.ai/prompt/Vintage%20hand-drawn%20tarot%20card%20illustration%20of%20a%20cute%20cat%20wizard%20starting%20a%20journey,%20mystical,%20parchment%20paper?width=400&height=700&nologo=true',
+                upright: {
+                    meaning: '這是一段新旅程的開始。代表著你擁有無限的潛能與純粹的初心。請放下過去的包袱，保持開放的心態去體驗未知。',
+                    advice: '勇敢跨出舒適圈，不要過度擔憂未來的風險。憑藉直覺行動，這正是你探索新方向的最佳時機。'
+                },
+                reversed: {
+                    meaning: '目前的狀態可能過於魯莽或缺乏計畫。你或許正在逃避某些責任，或者對即將到來的改變感到恐懼。',
+                    advice: '在採取行動前，請先評估風險。不要因為一時衝動而做出決定，多聽取他人的客觀建議。'
+                }
+            },
+            {
+                id: 1,
+                name: '魔術師 (The Magician)',
+                title: '顯化與創造',
+                imageUrl: 'https://image.pollinations.ai/prompt/Vintage%20hand-drawn%20tarot%20card%20illustration%20of%20a%20cute%20cat%20wizard%20casting%20a%20spell%20with%20a%20wand,%20mystical,%20parchment%20paper?width=400&height=700&nologo=true',
+                upright: {
+                    meaning: '你已經具備了實現目標所需的所有資源與能力。這是一張充滿創造力與顯化能量的牌，象徵著「心想事成」。',
+                    advice: '相信你自己的能力，將你的想法付諸實踐。專注於你的目標，宇宙會為你調動所需的資源。'
+                },
+                reversed: {
+                    meaning: '你可能感到才華被埋沒，或者在行動上缺乏專注力。有時也代表著溝通不良或計畫延宕。',
+                    advice: '重新檢視你的目標是否清晰。不要讓自我懷疑阻礙了你，先從小事開始建立自信心。'
+                }
+            },
+            {
+                id: 2,
+                name: '女祭司 (The High Priestess)',
+                title: '直覺與潛意識',
+                imageUrl: 'https://image.pollinations.ai/prompt/Vintage%20hand-drawn%20tarot%20card%20illustration%20of%20a%20wise%20cat%20witch%20reading%20a%20book%20under%20the%20moon,%20mystical,%20parchment%20paper?width=400&height=700&nologo=true',
+                upright: {
+                    meaning: '這張牌代表著內在的智慧、直覺與神祕的潛意識。有些事情在表面下醞釀，目前還不是採取主動行動的時候。',
+                    advice: '靜下心來，傾聽你內在的聲音。答案其實已經在你心中，暫時退一步，用觀察代替干預。'
+                },
+                reversed: {
+                    meaning: '你可能忽略了自己的直覺，或者因為外界的雜音而感到困惑。有時代表隱藏的秘密即將浮出水面。',
+                    advice: '不要過度依賴邏輯與他人的意見。給自己一些獨處的時間，重新與你的內在連結。'
+                }
+            },
+            {
+                id: 3,
+                name: '皇后 (The Empress)',
+                title: '豐盛與孕育',
+                imageUrl: 'https://image.pollinations.ai/prompt/Vintage%20hand-drawn%20tarot%20card%20illustration%20of%20a%20regal%20cat%20queen%20in%20a%20lush%20garden,%20mystical,%20parchment%20paper?width=400&height=700&nologo=true',
+                upright: {
+                    meaning: '皇后象徵著母性、豐盛、愛與美的能量。這是一個收穫與成長的時期，你的計畫正在獲得良好的滋養。',
+                    advice: '對自己和他人展現更多的關懷與包容。多接觸大自然，享受生活中的美好與感官體驗。'
+                },
+                reversed: {
+                    meaning: '可能表示過度依賴、溺愛，或是相反的：缺乏自我照顧與情感上的匱乏。',
+                    advice: '你需要先學會愛自己，才能健康地愛別人。建立適當的界線，避免在關係中失去自我。'
+                }
+            },
+            {
+                id: 4,
+                name: '皇帝 (The Emperor)',
+                title: '秩序與權力',
+                imageUrl: 'https://image.pollinations.ai/prompt/Vintage%20hand-drawn%20tarot%20card%20illustration%20of%20a%20stern%20cat%20king%20on%20a%20stone%20throne,%20mystical,%20parchment%20paper?width=400&height=700&nologo=true',
+                upright: {
+                    meaning: '代表著穩定、結構、邏輯與領導力。你現在需要建立規則與秩序，以務實的態度來掌控局面。',
+                    advice: '這不是感性用事的時候。展現你的責任感，制定清晰的計畫，並堅定地執行它。'
+                },
+                reversed: {
+                    meaning: '可能代表著固執、專制，或是缺乏自律與掌控力。你可能正處於權力鬥爭中。',
+                    advice: '反思自己是否過於強勢或缺乏彈性。學會放下不必要的控制欲，有時候妥協也是一種智慧。'
+                }
+            },
+            {
+                id: 5,
+                name: '戀人 (The Lovers)',
+                title: '選擇與結合',
+                imageUrl: 'https://image.pollinations.ai/prompt/Vintage%20hand-drawn%20tarot%20card%20illustration%20of%20two%20cats%20cuddling%20under%20a%20blessing%20angel,%20mystical,%20parchment%20paper?width=400&height=700&nologo=true',
+                upright: {
+                    meaning: '不僅代表著愛情與和諧的關係，也象徵著一個重要的價值觀選擇。你正在尋找與你靈魂共鳴的人事物。',
+                    advice: '在做出決定時，請確保它符合你真實的信仰與價值觀。真誠地與他人溝通，建立平等的夥伴關係。'
+                },
+                reversed: {
+                    meaning: '可能意味著關係中的失衡、價值觀的衝突，或者你正面臨著一個艱難且誘惑人心的抉擇。',
+                    advice: '誠實面對自己的內心，不要因為害怕孤單而做出妥協。重新評估這段關係或選擇是否健康。'
+                }
+            }
+        ];
+
+        const spreadTypes = {
+            single: { id: 'single', name: '單張指引', count: 1, labels: ['你的指引'] },
+            time: { id: 'time', name: '時間之流', count: 3, labels: ['過去', '現在', '未來'] }
+        };
+
+        // --- 2. 應用程式狀態 ---
+        let state = {
+            step: 'home', // 'home', 'shuffling', 'picking', 'desk'
+            spread: null, 
+            pickedVisualIndices: [], // 使用者點擊的牌背索引
+            drawnCards: [] // 最終抽出的牌卡資料
+        };
+
+        const appDiv = document.getElementById('app');
+
+        // --- 3. 圖片預載邏輯 ---
+        function preloadImages() {
+            tarotDeck.forEach(card => {
+                const img = new Image();
+                img.src = card.imageUrl;
+            });
+        }
+
+        // --- 4. 畫面渲染邏輯 ---
+        function render() {
+            if (state.step === 'home') renderHome();
+            else if (state.step === 'shuffling') renderShuffling();
+            else if (state.step === 'picking') renderPicking();
+            else if (state.step === 'desk') renderDesk();
+        }
+
+        function renderHome() {
+            appDiv.innerHTML = `
+                <div class="max-w-2xl w-full bg-black/40 backdrop-blur-xl border border-indigo-500/20 rounded-3xl p-8 md:p-12 shadow-2xl text-center transform transition-all">
+                    <div class="mb-6 flex justify-center">
+                        <div class="w-20 h-20 bg-indigo-900/50 rounded-full flex items-center justify-center border border-indigo-400/30 shadow-[0_0_30px_rgba(76,29,149,0.5)]">
+                            <i class="fa-solid fa-wand-sparkles text-3xl text-purple-300"></i>
+                        </div>
+                    </div>
+                    
+                    <h1 class="text-4xl md:text-5xl font-bold mb-4 tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-indigo-300 drop-shadow-sm">
+                        貓咪女巫塔羅牌
+                    </h1>
+                    
+                    <div class="bg-indigo-950/40 p-4 rounded-xl border border-indigo-500/10 mb-10">
+                        <p class="text-lg text-indigo-200 leading-relaxed tracking-wide">
+                            深呼吸，請在心裡默唸你的疑問...
+                        </p>
+                    </div>
+
+                    <h3 class="text-sm uppercase tracking-widest text-indigo-400/70 mb-4 font-semibold">選擇占卜牌陣</h3>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                        <button onclick="handleStart('single')" class="flex-1 py-4 px-6 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-400/30 transition-all rounded-xl font-bold text-indigo-100 flex items-center justify-center gap-2 group">
+                            <i class="fa-solid fa-clone text-indigo-300 group-hover:scale-110 transition-transform"></i>
+                            單張指引
+                            <span class="text-xs text-indigo-400/70 font-normal ml-2">1 張牌</span>
+                        </button>
+                        <button onclick="handleStart('time')" class="flex-1 py-4 px-6 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-400/30 transition-all rounded-xl font-bold text-purple-100 flex items-center justify-center gap-2 group">
+                            <i class="fa-solid fa-layer-group text-purple-300 group-hover:scale-110 transition-transform"></i>
+                            時間之流
+                            <span class="text-xs text-purple-400/70 font-normal ml-2">3 張牌</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderShuffling() {
+            appDiv.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-[50vh]">
+                    <div class="relative w-24 h-36 mb-10">
+                        <div class="absolute inset-0 card-back-pattern rounded-xl shadow-lg border border-indigo-400/30 animate-[spin_1s_linear_infinite]"></div>
+                        <div class="absolute inset-0 card-back-pattern rounded-xl shadow-lg border border-indigo-400/30 animate-[spin_1.5s_linear_infinite_reverse]"></div>
+                        <div class="absolute inset-0 card-back-pattern rounded-xl shadow-2xl border border-indigo-300/50 flex items-center justify-center z-10 animate-pulse">
+                            <i class="fa-solid fa-moon text-4xl text-indigo-200/80"></i>
+                        </div>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-indigo-200 tracking-widest animate-pulse">
+                        洗牌中，請集中精神...
+                    </h2>
+                </div>
+            `;
+        }
+
+        function renderPicking() {
+            const totalCards = 22; // 顯示 22 張牌背供選擇
+            let cardsHtml = '';
+            
+            for(let i=0; i<totalCards; i++) {
+                const isPicked = state.pickedVisualIndices.includes(i);
+                cardsHtml += `
+                    <div onclick="handlePick(${i})" 
+                         class="w-16 h-24 sm:w-20 sm:h-32 rounded-xl border-2 transition-all duration-300 
+                         ${isPicked ? 'opacity-0 scale-50 pointer-events-none' : 'card-back-pattern border-indigo-400/30 shadow-lg cursor-pointer hover:-translate-y-3 hover:shadow-indigo-500/50 hover:border-indigo-300'} flex items-center justify-center">
+                         <i class="fa-solid fa-star text-indigo-300/30 text-xl"></i>
+                    </div>
+                `;
+            }
+
+            appDiv.innerHTML = `
+                <div class="max-w-4xl w-full text-center">
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-white mb-2">請憑直覺挑選卡牌</h2>
+                        <p class="text-indigo-300 text-lg">
+                            還需挑選 <span class="font-bold text-purple-300 mx-1">${state.spread.count - state.pickedVisualIndices.length}</span> 張
+                            <span class="text-sm opacity-70 ml-2">(${state.pickedVisualIndices.length} / ${state.spread.count})</span>
+                        </p>
+                    </div>
+                    
+                    <div class="flex flex-wrap justify-center gap-2 sm:gap-4 max-w-3xl mx-auto p-4">
+                        ${cardsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDesk() {
+            let cardsHtml = '';
+            
+            state.drawnCards.forEach((item, index) => {
+                cardsHtml += `
+                    <div class="flex flex-col items-center w-full max-w-[280px]">
+                        <!-- 標籤 -->
+                        <div class="text-center mb-4 text-indigo-200 font-bold tracking-widest border-b border-indigo-500/30 pb-2 px-6">
+                            ${item.label}
+                        </div>
+                        
+                        <!-- 牌卡本體 -->
+                        <div class="perspective w-full aspect-[2/3] cursor-pointer flip-card ${item.isFlipped ? 'flipped' : ''}" onclick="handleFlip(${index})">
+                            <div class="flip-card-inner">
+                                <!-- 牌背 -->
+                                <div class="flip-card-front card-back-pattern border-2 border-indigo-400/40 shadow-xl flex items-center justify-center hover:shadow-indigo-500/40 transition-shadow">
+                                    <div class="text-center">
+                                        <i class="fa-solid fa-moon text-indigo-300/60 text-5xl mb-2"></i>
+                                        <p class="text-indigo-300/50 text-xs tracking-widest">點擊翻牌</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- 牌面 -->
+                                <div class="flip-card-back shadow-[0_0_40px_rgba(76,29,149,0.4)] border border-indigo-300/20 relative ${item.isReversed ? 'card-reversed' : ''}">
+                                    <img src="${item.card.imageUrl}" class="w-full h-full object-cover rounded-[15px]" alt="${item.card.name}">
+                                    <div class="absolute inset-0 bg-indigo-900/20 mix-blend-overlay pointer-events-none rounded-[15px]"></div>
+                                    
+                                    <!-- 牌名半透明漸層 -->
+                                    <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/70 to-transparent rounded-b-[15px]">
+                                        <h3 class="text-xl font-bold text-white text-center mb-1 drop-shadow-md">
+                                            ${item.card.name} ${item.isReversed ? '<span class="text-red-300 text-sm">(逆位)</span>' : ''}
+                                        </h3>
+                                        <p class="text-xs text-indigo-200 text-center drop-shadow-md">${item.card.title}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 解析文字區塊 (翻開後才顯示) -->
+                        <div class="mt-6 w-full transition-all duration-700 ease-out transform ${item.isFlipped ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'}">
+                            <div class="bg-black/40 backdrop-blur-md border border-indigo-500/20 rounded-2xl p-5 mb-4 shadow-lg">
+                                <h4 class="text-indigo-300 font-bold mb-3 flex items-center gap-2 border-b border-indigo-500/20 pb-2">
+                                    <i class="fa-solid fa-sparkles text-sm"></i> 牌義解析
+                                </h4>
+                                <p class="text-[15px] text-gray-200 leading-relaxed text-justify">
+                                    ${item.isReversed ? item.card.reversed.meaning : item.card.upright.meaning}
+                                </p>
+                            </div>
+                            
+                            <div class="bg-indigo-900/40 backdrop-blur-md border border-indigo-400/30 rounded-2xl p-5 shadow-lg">
+                                <h4 class="text-purple-300 font-bold mb-3 flex items-center gap-2 border-b border-purple-500/20 pb-2">
+                                    <i class="fa-solid fa-compass text-sm"></i> 牌面指引與建議
+                                </h4>
+                                <p class="text-[15px] text-gray-200 leading-relaxed text-justify">
+                                    ${item.isReversed ? item.card.reversed.advice : item.card.upright.advice}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            appDiv.innerHTML = `
+                <div class="max-w-6xl w-full mx-auto relative pt-12 pb-8">
+                    <button onclick="handleReset()" class="absolute top-0 right-0 md:right-4 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm text-indigo-300 transition-colors flex items-center gap-2 border border-white/10 backdrop-blur-sm z-50">
+                        <i class="fa-solid fa-rotate-left"></i> 重新抽牌
+                    </button>
+
+                    <div class="text-center mb-10 md:mb-16">
+                        <h2 class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-indigo-300 mb-3">你的專屬指引</h2>
+                        <p class="text-indigo-300/80 tracking-widest text-sm">點擊牌卡即可翻開</p>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row justify-center gap-10 md:gap-8 items-start px-4">
+                        ${cardsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- 5. 互動邏輯處理 ---
+        window.handleStart = function(spreadId) {
+            state.spread = spreadTypes[spreadId];
+            state.step = 'shuffling';
+            render();
+
+            // 模擬洗牌時間 2秒
+            setTimeout(() => {
+                state.step = 'picking';
+                state.pickedVisualIndices = [];
+                render();
+            }, 2000);
+        };
+
+        window.handlePick = function(index) {
+            if (state.pickedVisualIndices.includes(index) || state.pickedVisualIndices.length >= state.spread.count) {
+                return;
+            }
+            
+            // 記錄被點擊的牌
+            state.pickedVisualIndices.push(index);
+            render(); // 重新渲染以隱藏被點掉的牌
+
+            // 如果已經挑滿需要的數量
+            if (state.pickedVisualIndices.length === state.spread.count) {
+                // 從牌庫隨機抽出結果
+                let availableCards = [...tarotDeck];
+                state.drawnCards = [];
+                
+                for(let i=0; i<state.spread.count; i++) {
+                    const randIdx = Math.floor(Math.random() * availableCards.length);
+                    const selectedCard = availableCards.splice(randIdx, 1)[0];
+                    // 50% 機率逆位
+                    const isReversed = Math.random() > 0.5; 
+                    
+                    state.drawnCards.push({
+                        card: selectedCard,
+                        isReversed: isReversed,
+                        label: state.spread.labels[i],
+                        isFlipped: false // 預設蓋著
+                    });
+                }
+
+                // 稍微延遲一下，讓使用者看到最後一張牌消失的動畫，再進入桌面
+                setTimeout(() => {
+                    state.step = 'desk';
+                    render();
+                }, 600);
+            }
+        };
+
+        window.handleFlip = function(index) {
+            if (state.drawnCards[index].isFlipped) return; // 已經翻開就不做事
+            state.drawnCards[index].isFlipped = true;
+            render();
+        };
+
+        window.handleReset = function() {
+            state.step = 'home';
+            state.spread = null;
+            state.pickedVisualIndices = [];
+            state.drawnCards = [];
+            render();
+            // 滾動回最上方
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        // --- 6. 初始啟動 ---
+        preloadImages(); // 啟動時先在背景下載圖片
+        render(); // 繪製首頁
+
+    </script>
+</body>
 </html>
